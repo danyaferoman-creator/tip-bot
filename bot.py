@@ -27,7 +27,7 @@ def save_data(data):
 
 users = load_data()
 
-# --- клавиатура ---
+# --- клавиатуры ---
 keyboard_main = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="▶️ Начать смену")],
@@ -67,12 +67,12 @@ async def start_shift(message: types.Message):
     user = get_user(message.from_user.id)
     user["current"] = 0
     save_data(users)
-    await message.answer("Смена началась 💸")
+    await message.answer("Смена началась 💸", reply_markup=keyboard_main)
 
 @dp.message(lambda m: m.text == "📊 Итог")
 async def total(message: types.Message):
     user = get_user(message.from_user.id)
-    await message.answer(f"Сейчас: {round(user['current'], 2)}")
+    await message.answer(f"Сейчас: {round(user['current'], 2)}", reply_markup=keyboard_main)
 
 @dp.message(lambda m: m.text == "⛔ Закончить смену")
 async def end_shift(message: types.Message):
@@ -84,19 +84,19 @@ async def end_shift(message: types.Message):
     })
     user["current"] = 0
     save_data(users)
-    await message.answer(f"Итог за смену: {round(total_amount, 2)} 🔥")
+    await message.answer(f"Итог за смену: {round(total_amount, 2)} 🔥", reply_markup=keyboard_main)
 
 @dp.message(lambda m: m.text == "📜 История")
 async def history(message: types.Message):
     user = get_user(message.from_user.id)
     history = user["history"]
     if not history:
-        await message.answer("История пустая")
+        await message.answer("История пустая", reply_markup=keyboard_main)
         return
     text = "📜 Последние смены:\n\n"
     for shift in history[-5:][::-1]:
         text += f"{shift['date']} — {shift['total']}\n"
-    await message.answer(text)
+    await message.answer(text, reply_markup=keyboard_main)
 
 # --- запуск подтверждения очистки ---
 @dp.message(lambda m: m.text == "🗑 Очистить историю")
@@ -104,7 +104,7 @@ async def start_clear_history(message: types.Message):
     user = get_user(message.from_user.id)
     user["await_clear_confirm"] = True
     save_data(users)
-    await message.answer("Вы уверены, что хотите очистить историю? ❌ Отмена / ✅ Подтвердить очистку", 
+    await message.answer("Вы уверены, что хотите очистить историю? ❌ Отмена / ✅ Подтвердить очистку",
                          reply_markup=keyboard_confirm)
 
 # --- обработка подтверждения или отмены ---
@@ -141,7 +141,8 @@ async def handle_confirmation_or_other(message: types.Message):
     await message.answer(
         f"💸 Чаевые: {amount}\n"
         f"+ {round(net, 2)}\n"
-        f"Итого: {round(user['current'], 2)}"
+        f"Итого: {round(user['current'], 2)}",
+        reply_markup=keyboard_main
     )
 
 async def main():
