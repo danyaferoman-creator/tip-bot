@@ -150,7 +150,7 @@ async def handle_all(message: types.Message):
         try:
             amount = float(text.replace(" ", "").replace(",", "."))
         except:
-            await message.answer("❗ Введите сумму (например: 500 или 1 200,50)")
+            await message.answer("❗ Введи сумму или перешли сообщение с твом чаем")
             return
 
     # --- авто-старт смены ---
