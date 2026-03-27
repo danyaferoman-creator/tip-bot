@@ -14,6 +14,7 @@ dp = Dispatcher()
 
 DATA_FILE = "data.json"
 
+# --- загрузка и сохранение данных ---
 def load_data():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r", encoding="utf-8") as f:
@@ -26,31 +27,40 @@ def save_data(data):
 
 users = load_data()
 
-keyboard = ReplyKeyboardMarkup(
+# --- клавиатура ---
+keyboard_main = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="▶️ Начать смену")],
         [KeyboardButton(text="📊 Итог"), KeyboardButton(text="📜 История")],
-        [KeyboardButton(text="⛔ Закончить смену")]
+        [KeyboardButton(text="⛔ Закончить смену"), KeyboardButton(text="🗑 Очистить историю")]
     ],
     resize_keyboard=True
 )
 
+keyboard_confirm = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="✅ Подтвердить очистку"), KeyboardButton(text="❌ Отмена")]
+    ],
+    resize_keyboard=True
+)
+
+# --- парсер суммы ---
 def extract_amount(text):
-    match = re.search(r"оставили\s+(\d+[.,]?\d*)\s*RUB", text)
+    match = re.search(r"оставили\s+([\d\s]+[.,]?\d*)\s*RUB", text)
     if match:
-        return float(match.group(1).replace(",", "."))
+        return float(match.group(1).replace(" ", "").replace(",", "."))
     return None
 
 def get_user(user_id):
     user_id = str(user_id)
     if user_id not in users:
-        users[user_id] = {"current": 0, "history": []}
+        users[user_id] = {"current": 0, "history": [], "await_clear_confirm": False}
     return users[user_id]
 
 # --- хэндлеры ---
 @dp.message(Command("start"))
 async def start(message: types.Message):
-    await message.answer("Готов считать чаевые 👌", reply_markup=keyboard)
+    await message.answer("Готов считать чаевые 👌", reply_markup=keyboard_main)
 
 @dp.message(lambda m: m.text == "▶️ Начать смену")
 async def start_shift(message: types.Message):
@@ -88,17 +98,44 @@ async def history(message: types.Message):
         text += f"{shift['date']} — {shift['total']}\n"
     await message.answer(text)
 
-@dp.message()
-async def handle_message(message: types.Message):
+# --- запуск подтверждения очистки ---
+@dp.message(lambda m: m.text == "🗑 Очистить историю")
+async def start_clear_history(message: types.Message):
+    user = get_user(message.from_user.id)
+    user["await_clear_confirm"] = True
+    save_data(users)
+    await message.answer("Вы уверены, что хотите очистить историю? ❌ Отмена / ✅ Подтвердить очистку", 
+                         reply_markup=keyboard_confirm)
+
+# --- обработка подтверждения или отмены ---
+@dp.message(lambda m: True)
+async def handle_confirmation_or_other(message: types.Message):
+    user = get_user(message.from_user.id)
+
+    # если ждём подтверждения очистки
+    if user.get("await_clear_confirm", False):
+        if message.text == "✅ Подтвердить очистку":
+            user["history"] = []
+            user["await_clear_confirm"] = False
+            save_data(users)
+            await message.answer("История смен очищена ✅", reply_markup=keyboard_main)
+        elif message.text == "❌ Отмена":
+            user["await_clear_confirm"] = False
+            save_data(users)
+            await message.answer("Очистка отменена ❌", reply_markup=keyboard_main)
+        else:
+            await message.answer("Пожалуйста, используйте кнопки подтверждения ✅ / ❌", reply_markup=keyboard_confirm)
+        return
+
+    # обработка обычных сообщений с суммами
     text = message.text or ""
     amount = extract_amount(text)
     if amount is None:
         try:
-            amount = float(text.replace(",", "."))
+            amount = float(text.replace(" ", "").replace(",", "."))
         except:
             return
     net = amount / 1.25
-    user = get_user(message.from_user.id)
     user["current"] += net
     save_data(users)
     await message.answer(
