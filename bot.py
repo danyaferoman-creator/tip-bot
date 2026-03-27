@@ -3,32 +3,33 @@ import re
 import json
 import os
 from datetime import datetime
+
 from aiogram import Bot, Dispatcher, types
-from aiogram.filters import Command, Text
+from aiogram.filters import Command
+from aiogram.filters.text import Text  # правильный импорт для текстовых кнопок
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
+# --- токен ---
 TOKEN = os.getenv("BOT_TOKEN")
-
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
+# --- файл для данных ---
 DATA_FILE = "data.json"
 
-# --- загрузка ---
 def load_data():
     if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "r") as f:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     return {}
 
-# --- сохранение ---
 def save_data(data):
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
 
 users = load_data()
 
-# --- кнопки ---
+# --- клавиатура ---
 keyboard = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="▶️ Начать смену")],
@@ -38,7 +39,7 @@ keyboard = ReplyKeyboardMarkup(
     resize_keyboard=True
 )
 
-# --- парсер ---
+# --- парсер суммы ---
 def extract_amount(text):
     match = re.search(r"оставили\s+(\d+[.,]?\d*)\s*RUB", text)
     if match:
@@ -48,14 +49,11 @@ def extract_amount(text):
 def get_user(user_id):
     user_id = str(user_id)
     if user_id not in users:
-        users[user_id] = {
-            "current": 0,
-            "history": []
-        }
+        users[user_id] = {"current": 0, "history": []}
     return users[user_id]
 
 # --- хэндлеры ---
-@dp.message(Command(commands=["start"]))
+@dp.message(Command("start"))
 async def start(message: types.Message):
     await message.answer("Готов считать чаевые 👌", reply_markup=keyboard)
 
@@ -76,6 +74,7 @@ async def end_shift(message: types.Message):
     user = get_user(message.from_user.id)
     total_amount = user["current"]
 
+    # сохраняем в историю
     user["history"].append({
         "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
         "total": round(total_amount, 2)
@@ -96,7 +95,7 @@ async def history(message: types.Message):
         return
 
     text = "📜 Последние смены:\n\n"
-    for shift in history[-5:][::-1]:
+    for shift in history[-5:][::-1]:  # последние 5 смен
         text += f"{shift['date']} — {shift['total']}\n"
 
     await message.answer(text)
@@ -124,7 +123,7 @@ async def handle_message(message: types.Message):
         f"Итого: {round(user['current'], 2)}"
     )
 
-# --- запуск ---
+# --- запуск бота ---
 async def main():
     await dp.start_polling(bot)
 
