@@ -79,8 +79,10 @@ async def end_shift(message: types.Message):
     user = get_user(message.from_user.id)
     total_amount = user["current"]
 
+    # считаем сумму для бара
     to_bar = round(total_amount * 0.2, 2)
 
+    # сохраняем в историю
     user["history"].append({
         "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
         "total": round(total_amount, 2)
@@ -99,16 +101,12 @@ async def end_shift(message: types.Message):
 async def history(message: types.Message):
     user = get_user(message.from_user.id)
     history = user["history"]
-
     if not history:
         await message.answer("История пустая", reply_markup=keyboard_main)
         return
-
     text = "📜 Последние смены:\n\n"
-
     for shift in history[-5:][::-1]:
-        text += f"📅 {shift['date']}\n💰 {shift['total']}\n--------------------\n"
-
+        text += f"{shift['date']} — {shift['total']}\n"
     await message.answer(text, reply_markup=keyboard_main)
 
 # --- запуск подтверждения очистки ---
@@ -122,12 +120,12 @@ async def start_clear_history(message: types.Message):
         reply_markup=keyboard_confirm
     )
 
-# --- главный обработчик ---
-@dp.message()
-async def handle_all(message: types.Message):
+# --- обработка подтверждения или обычных сообщений ---
+@dp.message(lambda m: True)
+async def handle_confirmation_or_other(message: types.Message):
     user = get_user(message.from_user.id)
 
-    # --- подтверждение очистки ---
+    # если ждём подтверждения очистки
     if user.get("await_clear_confirm", False):
         if message.text == "✅ Подтвердить очистку":
             user["history"] = []
@@ -139,29 +137,20 @@ async def handle_all(message: types.Message):
             save_data(users)
             await message.answer("Очистка отменена ❌", reply_markup=keyboard_main)
         else:
-            await message.answer("Используй кнопки ✅ / ❌", reply_markup=keyboard_confirm)
+            await message.answer("Пожалуйста, используйте кнопки подтверждения ✅ / ❌", reply_markup=keyboard_confirm)
         return
 
-    # --- обработка суммы ---
+    # обработка обычных сообщений с суммами
     text = message.text or ""
     amount = extract_amount(text)
-
     if amount is None:
         try:
             amount = float(text.replace(" ", "").replace(",", "."))
         except:
-            await message.answer("❗ Введи сумму или перешли сообщение с твом чаем")
             return
-
-    # --- авто-старт смены ---
-    if user["current"] == 0:
-        await message.answer("⚡ Смена не была начата — запускаю автоматически")
-
     net = amount / 1.25
     user["current"] += net
-
     save_data(users)
-
     await message.answer(
         f"💸 Чаевые: {amount}\n"
         f"+ {round(net, 2)}\n"
@@ -169,7 +158,6 @@ async def handle_all(message: types.Message):
         reply_markup=keyboard_main
     )
 
-# --- запуск ---
 async def main():
     await dp.start_polling(bot)
 
