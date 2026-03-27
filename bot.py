@@ -78,13 +78,24 @@ async def total(message: types.Message):
 async def end_shift(message: types.Message):
     user = get_user(message.from_user.id)
     total_amount = user["current"]
+
+    # считаем сумму для бара
+    to_bar = round(total_amount * 0.2, 2)
+
+    # сохраняем в историю
     user["history"].append({
         "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
         "total": round(total_amount, 2)
     })
+
     user["current"] = 0
     save_data(users)
-    await message.answer(f"Итог за смену: {round(total_amount, 2)} 🔥", reply_markup=keyboard_main)
+
+    await message.answer(
+        f"Итог за смену: {round(total_amount, 2)} 🔥\n"
+        f"Нужно отдать на бар: {to_bar} 🍹",
+        reply_markup=keyboard_main
+    )
 
 @dp.message(lambda m: m.text == "📜 История")
 async def history(message: types.Message):
@@ -104,10 +115,12 @@ async def start_clear_history(message: types.Message):
     user = get_user(message.from_user.id)
     user["await_clear_confirm"] = True
     save_data(users)
-    await message.answer("Вы уверены, что хотите очистить историю? ❌ Отмена / ✅ Подтвердить очистку",
-                         reply_markup=keyboard_confirm)
+    await message.answer(
+        "Вы уверены, что хотите очистить историю? ❌ Отмена / ✅ Подтвердить очистку",
+        reply_markup=keyboard_confirm
+    )
 
-# --- обработка подтверждения или отмены ---
+# --- обработка подтверждения или обычных сообщений ---
 @dp.message(lambda m: True)
 async def handle_confirmation_or_other(message: types.Message):
     user = get_user(message.from_user.id)
