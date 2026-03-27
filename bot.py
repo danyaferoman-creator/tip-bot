@@ -4,7 +4,7 @@ import json
 import os
 from datetime import datetime
 from aiogram import Bot, Dispatcher, types
-from aiogram.filters import Command, Text
+from aiogram.filters import Command
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 TOKEN = os.getenv("BOT_TOKEN")
@@ -60,7 +60,7 @@ async def start(message: types.Message):
     await message.answer("Готов считать чаевые 👌", reply_markup=keyboard)
 
 # --- начало смены ---
-@dp.message(Text("▶️ Начать смену"))
+@dp.message(lambda m: m.text == "▶️ Начать смену")
 async def start_shift(message: types.Message):
     user = get_user(message.from_user.id)
     user["current"] = 0
@@ -68,13 +68,13 @@ async def start_shift(message: types.Message):
     await message.answer("Смена началась 💸")
 
 # --- итог ---
-@dp.message(Text("📊 Итог"))
+@dp.message(lambda m: m.text == "📊 Итог")
 async def total(message: types.Message):
     user = get_user(message.from_user.id)
     await message.answer(f"Сейчас: {round(user['current'], 2)}")
 
 # --- конец смены ---
-@dp.message(Text("⛔ Закончить смену"))
+@dp.message(lambda m: m.text == "⛔ Закончить смену")
 async def end_shift(message: types.Message):
     user = get_user(message.from_user.id)
     total_amount = user["current"]
@@ -97,7 +97,7 @@ async def end_shift(message: types.Message):
     )
 
 # --- история ---
-@dp.message(Text("📜 История"))
+@dp.message(lambda m: m.text == "📜 История")
 async def history(message: types.Message):
     user = get_user(message.from_user.id)
     history = user["history"]
@@ -115,7 +115,7 @@ async def history(message: types.Message):
     await message.answer(text)
 
 # --- очистка истории ---
-@dp.message(Text("🗑 Очистить историю"))
+@dp.message(lambda m: m.text == "🗑 Очистить историю")
 async def clear_history(message: types.Message):
     user = get_user(message.from_user.id)
     user["history"] = []
