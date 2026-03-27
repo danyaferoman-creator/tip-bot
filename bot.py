@@ -47,7 +47,7 @@ def get_user(user_id):
         users[user_id] = {"current": 0, "history": []}
     return users[user_id]
 
-# --- Хэндлеры ---
+# --- хэндлеры ---
 @dp.message(Command("start"))
 async def start(message: types.Message):
     await message.answer("Готов считать чаевые 👌", reply_markup=keyboard)
